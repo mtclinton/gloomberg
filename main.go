@@ -1,42 +1,40 @@
 package main
 
-import "fmt"
-import "net/http"
-import "log"
-import "io/ioutil"
-type Client struct {
-    client http.Client
-    base string
-}
+import (
+	"log"
 
-func newClient() Client {
-    return Client {
-        client: http.Client{},
-        base: "https://query1.finance.yahoo.com",
-    }
-}
+	ui "github.com/gizak/termui/v3"
+	"github.com/gizak/termui/v3/widgets"
+)
 
 func main() {
-    fmt.Println("Gloomberg")
-    c:= newClient()
-    req, err := http.NewRequest(http.MethodGet, c.base+"/v10/finance/quoteSummary/aapl?modules=earningsHistory", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err := ui.Init(); err != nil {
+		log.Fatalf("failed to initialize termui: %v", err)
 	}
+	defer ui.Close()
 
-	req.Header.Set("User-Agent", "gloomberg")
+    termWidth, _ := ui.TerminalDimensions()
+	tabpane := widgets.NewTabPane("SPY", "MSFT", "AAPL")
+	tabpane.SetRect(0, 0, termWidth, 4)
+	tabpane.Border = true
 
-	res, getErr := c.client.Do(req)
-	if getErr != nil {
-		log.Fatal(getErr)
-	}
-    if res.Body != nil {
-		defer res.Body.Close()
-	}
+	ui.Render(tabpane)
 
-	body, readErr := ioutil.ReadAll(res.Body)
-	if readErr != nil {
-		log.Fatal(readErr)
+	uiEvents := ui.PollEvents()
+
+	for {
+		e := <-uiEvents
+		switch e.ID {
+		case "q", "<C-c>":
+			return
+		case "h":
+			tabpane.FocusLeft()
+			ui.Clear()
+			ui.Render(tabpane)
+		case "l":
+			tabpane.FocusRight()
+			ui.Clear()
+			ui.Render(tabpane)
+		}
 	}
-    fmt.Println(body)
 }
